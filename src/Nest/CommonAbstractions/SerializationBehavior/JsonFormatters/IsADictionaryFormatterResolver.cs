@@ -126,7 +126,6 @@ namespace Nest
             }
 
 			var mutator = formatterResolver.GetConnectionSettings().DefaultFieldNameInferrer;
-			var keyFormatter = formatterResolver.GetFormatterWithVerify<TKey>() as IObjectPropertyNameFormatter<TKey>;
 			var valueFormatter = formatterResolver.GetFormatterWithVerify<TValue>();
 
 			writer.WriteBeginObject();
@@ -134,7 +133,7 @@ namespace Nest
 			var e = GetSourceEnumerator(value);
 			try
 			{
-				if (keyFormatter != null)
+				if (formatterResolver.GetFormatterWithVerify<TKey>() is IObjectPropertyNameFormatter<TKey> keyFormatter)
 				{
 					if (e.MoveNext())
 					{
@@ -142,6 +141,8 @@ namespace Nest
 						var innerWriter = new JsonWriter();
 						keyFormatter.SerializeToPropertyName(ref innerWriter, item.Key, formatterResolver);
 						writer.WriteString(mutator(innerWriter.ToString()));
+						innerWriter.Dispose();
+
 						writer.WriteNameSeparator();
 						valueFormatter.Serialize(ref writer, item.Value, formatterResolver);
 					}
@@ -155,6 +156,8 @@ namespace Nest
 						var innerWriter = new JsonWriter();
 						keyFormatter.SerializeToPropertyName(ref innerWriter, item.Key, formatterResolver);
 						writer.WriteString(mutator(innerWriter.ToString()));
+						innerWriter.Dispose();
+
 						writer.WriteNameSeparator();
 						valueFormatter.Serialize(ref writer, item.Value, formatterResolver);
 					}
@@ -195,13 +198,12 @@ namespace Nest
             if (reader.ReadIsNull()) return null;
 
 			var keyFormatter = formatterResolver.GetFormatterWithVerify<TKey>();
-			var objectKeyFormatter = keyFormatter as IObjectPropertyNameFormatter<TKey>;
 			var valueFormatter = formatterResolver.GetFormatterWithVerify<TValue>();
 			reader.ReadIsBeginObjectWithVerify();
 
 			var dict = Create();
 			var i = 0;
-			if (objectKeyFormatter != null)
+			if (keyFormatter is IObjectPropertyNameFormatter<TKey> objectKeyFormatter)
 			{
 				while (!reader.ReadIsEndObjectWithSkipValueSeparator(ref i))
 				{

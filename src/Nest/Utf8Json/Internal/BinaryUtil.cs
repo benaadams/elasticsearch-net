@@ -33,14 +33,15 @@ namespace Nest.Utf8Json
 		private const int ArrayMaxSize = 0x7FFFFFC7; // https://msdn.microsoft.com/en-us/library/system.array
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void EnsureCapacity(ref byte[] bytes, int offset, int appendLength)
+		public static void EnsureCapacity(ref byte[] bytes, int offset, int appendLength, ref bool isRented)
 		{
 			var newLength = offset + appendLength;
 
 			// If null(most case first time) fill byte.
 			if (bytes == null)
 			{
-				bytes = new byte[newLength];
+				bytes = JsonSerializer.MemoryPool.Rent(newLength);
+				isRented = true;
 				return;
 			}
 
@@ -52,7 +53,7 @@ namespace Nest.Utf8Json
 				if (num < 256)
 				{
 					num = 256;
-					FastResize(ref bytes, num);
+					FastResize(ref bytes, num, ref isRented);
 					return;
 				}
 
@@ -69,13 +70,13 @@ namespace Nest.Utf8Json
 						num = newSize;
 				}
 
-				FastResize(ref bytes, num);
+				FastResize(ref bytes, num, ref isRented);
 			}
 		}
 
 		// Buffer.BlockCopy version of Array.Resize
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void FastResize(ref byte[] array, int newSize)
+		public static void FastResize(ref byte[] array, int newSize, ref bool isRented)
 		{
 			if (newSize < 0) throw new ArgumentOutOfRangeException("newSize");
 
@@ -83,6 +84,7 @@ namespace Nest.Utf8Json
 			if (array2 == null)
 			{
 				array = JsonSerializer.MemoryPool.Rent(newSize);
+				isRented = true;
 				return;
 			}
 
@@ -90,12 +92,18 @@ namespace Nest.Utf8Json
 			{
 				var array3 = JsonSerializer.MemoryPool.Rent(newSize);
 				Buffer.BlockCopy(array2, 0, array3, 0, (array2.Length > newSize) ? newSize : array2.Length);
+				if (isRented)
+				{
+					JsonSerializer.MemoryPool.Return(array2);
+				}
+				isRented = true;
+
 				array = array3;
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe byte[] FastCloneWithResize(byte[] src, int newSize)
+		public static unsafe byte[] FastCloneWithResize(byte[] src, int newSize, ref bool isRented)
 		{
 			if (newSize < 0) throw new ArgumentOutOfRangeException("newSize");
 			if (src.Length < newSize) throw new ArgumentException("length < newSize");
@@ -106,6 +114,12 @@ namespace Nest.Utf8Json
 			fixed (byte* pDst = & dst[0])
 			{
 				Buffer.MemoryCopy(pSrc, pDst, dst.Length, newSize);
+			}
+
+			if (isRented)
+			{
+				JsonSerializer.MemoryPool.Return(src);
+				isRented = false;
 			}
 
 			return dst;

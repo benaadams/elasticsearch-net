@@ -30,15 +30,18 @@ using System.Text;
 using Elastic.Transport;
 using Elasticsearch.Net;
 
+using static Nest.Utf8Json.JsonSerializer;
+
 namespace Nest.Utf8Json
 {
 	// JSON RFC: https://www.ietf.org/rfc/rfc4627.txt
 
-	internal struct JsonWriter
+	internal struct JsonWriter : IDisposable
 	{
 		// write direct from UnsafeMemory
 		internal byte[] Buffer;
 		internal int Offset;
+		internal bool IsRented;
 
 		public int CurrentOffset => Offset;
 
@@ -46,14 +49,14 @@ namespace Nest.Utf8Json
 
 		public static byte[] GetEncodedPropertyName(string propertyName)
 		{
-			var writer = new JsonWriter();
+			using var writer = new JsonWriter();
 			writer.WritePropertyName(propertyName);
 			return writer.ToUtf8ByteArray();
 		}
 
 		public static byte[] GetEncodedPropertyNameWithPrefixValueSeparator(string propertyName)
 		{
-			var writer = new JsonWriter();
+			using var writer = new JsonWriter();
 			writer.WriteValueSeparator();
 			writer.WritePropertyName(propertyName);
 			return writer.ToUtf8ByteArray();
@@ -61,7 +64,7 @@ namespace Nest.Utf8Json
 
 		public static byte[] GetEncodedPropertyNameWithBeginObject(string propertyName)
 		{
-			var writer = new JsonWriter();
+			using var writer = new JsonWriter();
 			writer.WriteBeginObject();
 			writer.WritePropertyName(propertyName);
 			return writer.ToUtf8ByteArray();
@@ -69,7 +72,7 @@ namespace Nest.Utf8Json
 
 		public static byte[] GetEncodedPropertyNameWithoutQuotation(string propertyName)
 		{
-			var writer = new JsonWriter();
+			using var writer = new JsonWriter();
 			writer.WriteString(propertyName); // "propname"
 			var buf = writer.GetBuffer();
 			var result = new byte[buf.Count - 2];
@@ -77,21 +80,20 @@ namespace Nest.Utf8Json
 			return result;
 		}
 
-		public JsonWriter(byte[] initialBuffer)
-		{
-			Buffer = initialBuffer;
-			Offset = 0;
-		}
-
 		public ArraySegment<byte> GetBuffer() =>
 			Buffer == null
 				? new ArraySegment<byte>(Array.Empty<byte>(), 0, 0)
 				: new ArraySegment<byte>(Buffer, 0, Offset);
 
-		public byte[] ToUtf8ByteArray() =>
-			Buffer == null
+		public byte[] ToUtf8ByteArray()
+		{
+			// Don't want clone to return the buffer
+			var isRented = false;
+			var data = Buffer == null
 				? Array.Empty<byte>()
-				: BinaryUtil.FastCloneWithResize(Buffer, Offset);
+				: BinaryUtil.FastCloneWithResize(Buffer, Offset, ref isRented);
+			return data;
+		}
 
 		public override string ToString() =>
 			Buffer == null
@@ -99,12 +101,12 @@ namespace Nest.Utf8Json
 				: Encoding.UTF8.GetString(Buffer, 0, Offset);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void EnsureCapacity(int appendLength) => BinaryUtil.EnsureCapacity(ref Buffer, Offset, appendLength);
+		public void EnsureCapacity(int appendLength) => BinaryUtil.EnsureCapacity(ref Buffer, Offset, appendLength, ref IsRented);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteRaw(byte rawValue)
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = rawValue;
 		}
 
@@ -130,35 +132,35 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteBeginArray()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)'[';
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteEndArray()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)']';
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteBeginObject()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)'{';
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteEndObject()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)'}';
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteValueSeparator()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)',';
 		}
 
@@ -166,7 +168,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteNameSeparator()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)':';
 		}
 
@@ -181,14 +183,14 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteQuotation()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 1, ref IsRented);
 			Buffer[Offset++] = (byte)'\"';
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteNull()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4, ref IsRented);
 			Buffer[Offset + 0] = (byte)'n';
 			Buffer[Offset + 1] = (byte)'u';
 			Buffer[Offset + 2] = (byte)'l';
@@ -201,7 +203,7 @@ namespace Nest.Utf8Json
 		{
 			if (value)
 			{
-				BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4);
+				BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4, ref IsRented);
 				Buffer[Offset + 0] = (byte)'t';
 				Buffer[Offset + 1] = (byte)'r';
 				Buffer[Offset + 2] = (byte)'u';
@@ -210,7 +212,7 @@ namespace Nest.Utf8Json
 			}
 			else
 			{
-				BinaryUtil.EnsureCapacity(ref Buffer, Offset, 5);
+				BinaryUtil.EnsureCapacity(ref Buffer, Offset, 5, ref IsRented);
 				Buffer[Offset + 0] = (byte)'f';
 				Buffer[Offset + 1] = (byte)'a';
 				Buffer[Offset + 2] = (byte)'l';
@@ -223,7 +225,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteTrue()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 4, ref IsRented);
 			Buffer[Offset + 0] = (byte)'t';
 			Buffer[Offset + 1] = (byte)'r';
 			Buffer[Offset + 2] = (byte)'u';
@@ -234,7 +236,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void WriteFalse()
 		{
-			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 5);
+			BinaryUtil.EnsureCapacity(ref Buffer, Offset, 5, ref IsRented);
 			Buffer[Offset + 0] = (byte)'f';
 			Buffer[Offset + 1] = (byte)'a';
 			Buffer[Offset + 2] = (byte)'l';
@@ -284,7 +286,7 @@ namespace Nest.Utf8Json
 			// nonescaped-ensure
 			var startOffset = Offset;
 			var max = StringEncoding.UTF8.GetMaxByteCount(value.Length) + 2;
-			BinaryUtil.EnsureCapacity(ref Buffer, startOffset, max);
+			BinaryUtil.EnsureCapacity(ref Buffer, startOffset, max, ref IsRented);
 
 			var from = 0;
 
@@ -353,7 +355,7 @@ namespace Nest.Utf8Json
 				}
 
 				max += escapeChar == default ? 6 : 2;
-				BinaryUtil.EnsureCapacity(ref Buffer, startOffset, max); // check +escape capacity
+				BinaryUtil.EnsureCapacity(ref Buffer, startOffset, max, ref IsRented); // check +escape capacity
 				Offset += StringEncoding.UTF8.GetBytes(value, from, i - from, Buffer, Offset);
 				from = i + 1;
 
@@ -380,6 +382,16 @@ namespace Nest.Utf8Json
 			buffer[offset++] = (byte)CharUtils.HexDigit((c >> 8) & '\x000f');
 			buffer[offset++] = (byte)CharUtils.HexDigit((c >> 4) & '\x000f');
 			buffer[offset++] = (byte)CharUtils.HexDigit(c & '\x000f');
+		}
+
+		public void Dispose()
+		{
+			if (IsRented)
+			{
+				IsRented = false;
+				Offset = 0;
+				JsonSerializer.MemoryPool.Return(Buffer);
+			}
 		}
 	}
 }

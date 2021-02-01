@@ -536,6 +536,7 @@ namespace Nest.Utf8Json
 			var builderOffset = 0;
 			char[] codePointStringBuffer = null;
 			var codePointStringOffet = 0;
+			var isRented = false;
 
 			if (_bytes[_offset] != '\"') throw CreateParsingException("String Begin Token");
 
@@ -580,7 +581,7 @@ namespace Nest.Utf8Json
 									builder ??= StringBuilderCache.GetBuffer();
 
 									var copyCount = i - from;
-									BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount + 1); // require + 1
+									BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount + 1, ref isRented); // require + 1
 									Buffer.BlockCopy(_bytes, from, builder, builderOffset, copyCount);
 									builderOffset += copyCount;
 								}
@@ -608,7 +609,7 @@ namespace Nest.Utf8Json
 						if (codePointStringOffet != 0)
 						{
 							if (builder == null) builder = StringBuilderCache.GetBuffer();
-							BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet));
+							BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet), ref isRented);
 							builderOffset += StringEncoding.UTF8.GetBytes(codePointStringBuffer, 0, codePointStringOffet, builder, builderOffset);
 							codePointStringOffet = 0;
 						}
@@ -621,13 +622,13 @@ namespace Nest.Utf8Json
 					if (builder == null) builder = StringBuilderCache.GetBuffer();
 					if (codePointStringOffet != 0)
 					{
-						BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet));
+						BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet), ref isRented);
 						builderOffset += StringEncoding.UTF8.GetBytes(codePointStringBuffer, 0, codePointStringOffet, builder, builderOffset);
 						codePointStringOffet = 0;
 					}
 
 					var copyCount = i - from;
-					BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount + 1); // require + 1!
+					BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount + 1, ref isRented); // require + 1!
 					Buffer.BlockCopy(_bytes, from, builder, builderOffset, copyCount);
 					builderOffset += copyCount;
 					builder[builderOffset++] = escapeCharacter;
@@ -654,13 +655,13 @@ namespace Nest.Utf8Json
 				if (builder == null) builder = StringBuilderCache.GetBuffer();
 				if (codePointStringOffet != 0)
 				{
-					BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet));
+					BinaryUtil.EnsureCapacity(ref builder, builderOffset, StringEncoding.UTF8.GetMaxByteCount(codePointStringOffet), ref isRented);
 					builderOffset += StringEncoding.UTF8.GetBytes(codePointStringBuffer, 0, codePointStringOffet, builder, builderOffset);
 					codePointStringOffet = 0;
 				}
 
 				var copyCount = _offset - from - 1;
-				BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount);
+				BinaryUtil.EnsureCapacity(ref builder, builderOffset, copyCount, ref isRented);
 				Buffer.BlockCopy(_bytes, from, builder, builderOffset, copyCount);
 				builderOffset += copyCount;
 

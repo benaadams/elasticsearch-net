@@ -569,7 +569,7 @@ namespace Nest.Utf8Json
 				processed_characters_count = (current - input);
 
 				var fallbackbuffer = GetFallbackBuffer();
-				BinaryUtil.EnsureCapacity(ref _fallbackBuffer, 0, processed_characters_count);
+				BinaryUtil.EnsureCapacity(ref fallbackbuffer, 0, processed_characters_count);
 				var fallbackI = 0;
 				while (input != current)
 				{

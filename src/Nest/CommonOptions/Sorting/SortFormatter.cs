@@ -134,6 +134,8 @@ using Nest.Utf8Json;
 					if (buffer.Count > 2)
 						writer.WriteValueSeparator();
 
+					innerWriter.Dispose();
+
 					writer.WritePropertyName(settings.Inferrer.Field(geo.Field));
 					var geoFormatter = formatterResolver.GetFormatter<IEnumerable<GeoLocation>>();
 					geoFormatter.Serialize(ref writer, geo.Points, formatterResolver);

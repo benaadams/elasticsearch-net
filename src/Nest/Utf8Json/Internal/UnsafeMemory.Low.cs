@@ -187,7 +187,7 @@ namespace Nest.Utf8Json
 
 		public static unsafe void MemoryCopy(ref JsonWriter writer, byte[] src, int length)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, length);
+			writer.EnsureCapacity(length);
 			fixed (void* dstP = & writer.Buffer[writer.Offset])
 			fixed (void* srcP = & src[0])
 			{
@@ -202,7 +202,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw1(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -216,7 +216,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw2(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -230,7 +230,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw3(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -248,7 +248,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw1(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -262,7 +262,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw2(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -276,7 +276,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw3(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -291,7 +291,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw4(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -305,7 +305,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw5(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -320,7 +320,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw6(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])
@@ -335,7 +335,7 @@ namespace Nest.Utf8Json
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void WriteRaw7(ref JsonWriter writer, byte[] src)
 		{
-			BinaryUtil.EnsureCapacity(ref writer.Buffer, writer.Offset, src.Length);
+			writer.EnsureCapacity(src.Length);
 
 			fixed (byte* pSrc = & src[0])
 			fixed (byte* pDst = & writer.Buffer[writer.Offset])

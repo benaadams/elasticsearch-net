@@ -149,6 +149,8 @@ namespace Nest
 				for (var i = 1; buffer.Array != null && i < buffer.Count - 1; i++)
 					writer.WriteRawUnsafe(buffer.Array[i]);
 
+				innerWriter.Dispose();
+
 				writer.WriteEndObject();
 			}
 			writer.WriteEndObject();

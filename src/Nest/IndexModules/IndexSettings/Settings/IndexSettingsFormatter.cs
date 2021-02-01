@@ -338,7 +338,7 @@ namespace Nest
 			formatterResolver.GetFormatter<object>().Serialize(ref writer, setting, formatterResolver);
 			var reader = new JsonReader(writer.GetBuffer().Array, 0);
 			var value = formatterResolver.GetFormatter<T>().Deserialize(ref reader, formatterResolver);
-
+			writer.Dispose();
 			return value;
 		}
 

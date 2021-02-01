@@ -58,18 +58,13 @@ namespace Nest.Utf8Json
 		public static byte[] Serialize<T>(T value, IJsonFormatterResolver resolver)
 		{
 			if (resolver == null) resolver = DefaultResolver;
-			var buffer = MemoryPool.Rent();
-			try
-			{
-				var writer = new JsonWriter(buffer);
-				var formatter = resolver.GetFormatterWithVerify<T>();
-				formatter.Serialize(ref writer, value, resolver);
-				return writer.ToUtf8ByteArray();
-			}
-			finally
-			{
-				MemoryPool.Return(buffer);
-			}
+
+			var writer = new JsonWriter();
+			var formatter = resolver.GetFormatterWithVerify<T>();
+			formatter.Serialize(ref writer, value, resolver);
+			var data = writer.ToUtf8ByteArray();
+			writer.Dispose();
+			return data;
 		}
 
 		public static void Serialize<T>(ref JsonWriter writer, T value) => Serialize<T>(ref writer, value, _defaultResolver);
@@ -110,19 +105,12 @@ namespace Nest.Utf8Json
 		{
 			if (resolver == null) resolver = DefaultResolver;
 
-			var buf = MemoryPool.Rent();
-			try
-			{
-				var writer = new JsonWriter(buf);
-				var formatter = resolver.GetFormatterWithVerify<T>();
-				formatter.Serialize(ref writer, value, resolver);
-				var buffer = writer.GetBuffer();
-				await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count).ConfigureAwait(false);
-			}
-			finally
-			{
-				MemoryPool.Return(buf);
-			}
+			var writer = new JsonWriter();
+			var formatter = resolver.GetFormatterWithVerify<T>();
+			formatter.Serialize(ref writer, value, resolver);
+			var buffer = writer.GetBuffer();
+			await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count).ConfigureAwait(false);
+			writer.Dispose();
 		}
 
 		/// <summary>
@@ -137,19 +125,13 @@ namespace Nest.Utf8Json
 		{
 			if (resolver == null) resolver = DefaultResolver;
 
-			var buffer = MemoryPool.Rent();
-			try
-			{
-				var writer = new JsonWriter(buffer);
-				var formatter = resolver.GetFormatterWithVerify<T>();
-				formatter.Serialize(ref writer, value, resolver);
-				var arraySegment = writer.GetBuffer();
-				return new ArraySegment<byte>(BinaryUtil.ToArray(ref arraySegment));
-			}
-			finally
-			{
-				MemoryPool.Return(buffer);
-			}
+			var writer = new JsonWriter();
+			var formatter = resolver.GetFormatterWithVerify<T>();
+			formatter.Serialize(ref writer, value, resolver);
+			var arraySegment = writer.GetBuffer();
+			var data = new ArraySegment<byte>(BinaryUtil.ToArray(ref arraySegment));
+			writer.Dispose();
+			return data;
 		}
 
 		/// <summary>
@@ -164,18 +146,12 @@ namespace Nest.Utf8Json
 		{
 			if (resolver == null) resolver = DefaultResolver;
 
-			var buffer = MemoryPool.Rent();
-			try
-			{
-				var writer = new JsonWriter(buffer);
-				var formatter = resolver.GetFormatterWithVerify<T>();
-				formatter.Serialize(ref writer, value, resolver);
-				return writer.ToString();
-			}
-			finally
-			{
-				MemoryPool.Return(buffer);
-			}
+			var writer = new JsonWriter();
+			var formatter = resolver.GetFormatterWithVerify<T>();
+			formatter.Serialize(ref writer, value, resolver);
+			var data = writer.ToString();
+			writer.Dispose();
+			return data;
 		}
 
 		public static T Deserialize<T>(string json) => Deserialize<T>(json, _defaultResolver);
@@ -238,10 +214,10 @@ namespace Nest.Utf8Json
 				}
 			}
 			var buf = MemoryPool.Rent();
-			var poolBuf = buf;
+			var isRented = true;
 			try
 			{
-				var length = FillFromStream(stream, ref buf);
+				var length = FillFromStream(stream, ref buf, ref isRented);
 
 				if (length == 0)
 					return default;
@@ -250,14 +226,17 @@ namespace Nest.Utf8Json
 				var token = new JsonReader(buf).GetCurrentJsonToken();
 				if (token == JsonToken.Number)
 				{
-					buf = BinaryUtil.FastCloneWithResize(buf, length);
+					buf = BinaryUtil.FastCloneWithResize(buf, length, ref isRented);
 				}
 
 				return Deserialize<T>(buf, resolver);
 			}
 			finally
 			{
-				MemoryPool.Return(poolBuf);
+				if (isRented)
+				{
+					MemoryPool.Return(buf);
+				}
 			}
 		}
 
@@ -288,8 +267,8 @@ namespace Nest.Utf8Json
 				}
 			}
 
-			var buffer = MemoryPool.Rent();
-			var buf = buffer;
+			var buf = MemoryPool.Rent();
+			var isRented = true;
 			try
 			{
 				var length = 0;
@@ -298,7 +277,9 @@ namespace Nest.Utf8Json
 				{
 					length += read;
 					if (length == buf.Length)
-						BinaryUtil.FastResize(ref buf, length * 2);
+					{
+						BinaryUtil.FastResize(ref buf, length * 2, ref isRented);
+					}
 				}
 
 				if (length == 0)
@@ -308,18 +289,21 @@ namespace Nest.Utf8Json
 				var token = new JsonReader(buf).GetCurrentJsonToken();
 				if (token == JsonToken.Number)
 				{
-					buf = BinaryUtil.FastCloneWithResize(buf, length);
+					buf = BinaryUtil.FastCloneWithResize(buf, length, ref isRented);
 				}
 
 				return Deserialize<T>(buf, resolver);
 			}
 			finally
 			{
-				MemoryPool.Return(buffer);
+				if (isRented)
+				{
+					MemoryPool.Return(buf);
+				}
 			}
 		}
 
-		private static int FillFromStream(Stream input, ref byte[] buffer)
+		private static int FillFromStream(Stream input, ref byte[] buffer, ref bool isRented)
 		{
 			var length = 0;
 			int read;
@@ -327,7 +311,7 @@ namespace Nest.Utf8Json
 			{
 				length += read;
 				if (length == buffer.Length)
-					BinaryUtil.FastResize(ref buffer, length * 2);
+					BinaryUtil.FastResize(ref buffer, length * 2, ref isRented);
 			}
 
 			return length;
